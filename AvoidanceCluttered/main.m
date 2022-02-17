@@ -1,4 +1,5 @@
 %% AVOIDANCE CLUTTERED
+% Notes
 
 %% SETUP
 clear 
@@ -9,13 +10,14 @@ addpath('./Functions')
 n = 5;              % Spatial Beziér Curve Order
 m = 3;              % Temporal Beziér Curve Order
 d = 2;              % Space Dimension
-r = 3;              % Shape Parameter
+r = 2;              % Shape Parameter
 segments_num = 5;   % Number of Segments
 t = 0:0.01:1;       % Time Vector (for visualization)
 
+%% %% INITIAL MISSION PLANNING
 %% MISSION PARAMETERS
-start_position = [1; 1];                    % Start Position
-target_position = [8; 3];                   % Target Position
+start_position = [1; 4];                    % Start Position
+target_position = [8; 4];                   % Target Position
 segment_time = 2;                           % Time Allocated to each Segment
 total_time = segments_num*segment_time;     % Total Mission Time
 
@@ -35,7 +37,7 @@ bE1y = zeros(n+1, 1) - safeDist;
 AE2x = eye(n+1);
 AE2y = [-eye(n+1); eye(n+1)];
 bE2x = 5*ones(n+1, 1) - safeDist;
-bE2y = [-2*ones(n+1, 1) - safeDist; 3*ones(n+1, 1) - safeDist];
+bE2y = [-5*ones(n+1, 1) - safeDist; 6*ones(n+1, 1) - safeDist];
 
 % Safe Region 3
 AE3x = [-eye(n+1); eye(n+1)];
@@ -102,6 +104,29 @@ bEy = [bE1y; bE2y; bE3y; bE4y; bE5y];
 
 AE = blkdiag(AEx, AEy);
 bE = [bEx; bEy];
+
+%% Dynamic Constraints Full
+
+AvFull = [];
+for i = 1:segments_num
+    AvFull = blkdiag(AvFull, Av);
+end
+
+AvFull = [AvFull; -AvFull];
+AvFull = blkdiag(AvFull, AvFull);
+
+AaFull = [];
+for i = 1:segments_num
+    AaFull = blkdiag(AaFull, Aa);
+end
+
+AaFull = [AaFull; -AaFull];
+AaFull = blkdiag(AaFull, AaFull);
+
+Adyn = [AvFull; AaFull];
+
+bdyn = [repmat(bv, 2*d*segments_num, 1); repmat(ba, 2*d*segments_num, 1)];
+
 %% Find Initial Trajectory
 % Cost
 H = computeH(n, r);
@@ -112,7 +137,7 @@ for k = 1:segments_num*d
     Hcost = blkdiag(Hcost, DHD);
 end
 
-x = quadprog(Hcost, [], AE, bE, Aeq, beq);
+x = quadprog(Hcost, [], [Adyn; AE], [bdyn;bE], Aeq, beq);
 
 %% Store Initial Trajectory
 
@@ -152,3 +177,6 @@ hold off
 xlim([0, 9])
 ylim([0, 9])
 
+%% %% OBSTACLE AVOIDANCE CLASSIC
+
+obstaclePoints = [];
