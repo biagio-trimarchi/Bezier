@@ -10,7 +10,7 @@ addpath('./Functions')
 n = 5;              % Spatial Beziér Curve Order
 m = 3;              % Temporal Beziér Curve Order
 d = 2;              % Space Dimension
-r = 5;              % Shape Parameter
+r = 2;              % Shape Parameter
 segments_num = 5;   % Number of Segments
 t = 0:0.01:1;       % Time Vector (for visualization)
 
@@ -112,7 +112,20 @@ for i = 1:segments_num
     AvFull = blkdiag(AvFull, Av);
 end
 
-AvFull = [AvF]
+AvFull = [AvFull; -AvFull];
+AvFull = blkdiag(AvFull, AvFull);
+
+AaFull = [];
+for i = 1:segments_num
+    AaFull = blkdiag(AaFull, Aa);
+end
+
+AaFull = [AaFull; -AaFull];
+AaFull = blkdiag(AaFull, AaFull);
+
+Adyn = [AvFull; AaFull];
+
+bdyn = [repmat(bv, 2*d*segments_num, 1); repmat(ba, 2*d*segments_num, 1)];
 
 %% Find Initial Trajectory
 % Cost
@@ -124,7 +137,7 @@ for k = 1:segments_num*d
     Hcost = blkdiag(Hcost, DHD);
 end
 
-x = quadprog(Hcost, [], AE, bE, Aeq, beq);
+x = quadprog(Hcost, [], [Adyn; AE], [bdyn;bE], Aeq, beq);
 
 %% Store Initial Trajectory
 
@@ -166,4 +179,48 @@ ylim([0, 9])
 
 %% %% OBSTACLE AVOIDANCE CLASSIC
 
-obstaclePoints = [];
+%% OBSTACLE PATH
+obstaclePoints = [4.5, 4.5, 4.5, 4.5, 4.5, 4.5;
+                    8,   7,   6,   3,   2,   1];
+
+obstacleCurve = zeros(d, length(t));
+for tt = 1:length(t)
+    obstacleCurve(:, tt) = zeros(d, 1);
+    for k = 1:n+1
+        obstacleCurve(:, tt) = obstacleCurve(:, tt) + bernsteinPol(n, k-1, t(tt))*obstaclePoints(:, k);
+    end
+end
+
+
+%% PLOT
+
+figure(2)
+plot(start_position(1), start_position(2), 'x', 'MarkerSize', 10);
+hold on
+plot(target_position(1), target_position(2), 'x', 'MarkerSize', 10);
+drawObstacles();
+
+for i = 1:segments_num
+    plot(trajectory(i).points(1, :), trajectory(i).points(2, :), 'o', 'MarkerSize', 10);
+    plot(trajectory(i).curve(1, :), trajectory(i).curve(2, :));
+end
+plot(obstacleCurve(1, :), obstacleCurve(2, :));
+hold off
+
+xlim([0, 9])
+ylim([0, 9])
+
+%% PLOT ANIMATION
+
+for tt = 1:length(t)
+    figure(3)
+    plot(trajectory(3).curve(1, :), trajectory(3).curve(2, :));
+    hold on
+    plot(obstacleCurve(1, :), obstacleCurve(2, :));
+    
+    plot(trajectory(3).curve(1, :), trajectory(3).curve(2, :), ');
+    plot(obstacleCurve(1, :), obstacleCurve(2, :));
+    drawObstacles();
+    plotCircle
+    hold off
+end

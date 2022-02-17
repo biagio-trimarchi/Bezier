@@ -179,4 +179,56 @@ ylim([0, 9])
 
 %% %% OBSTACLE AVOIDANCE CLASSIC
 
-obstaclePoints = [];
+%% OBSTACLE PATH
+obstaclePoints = [4.5, 4.5, 4.5, 4.5, 4.5, 4.5;
+                    8,   7,   3,   2,   1,   1];
+
+obstacleCurve = zeros(d, length(t));
+for tt = 1:length(t)
+    obstacleCurve(:, tt) = zeros(d, 1);
+    for k = 1:n+1
+        obstacleCurve(:, tt) = obstacleCurve(:, tt) + bernsteinPol(n, k-1, t(tt))*obstaclePoints(:, k);
+    end
+end
+
+
+%% PLOT
+
+figure(2)
+plot(start_position(1), start_position(2), 'x', 'MarkerSize', 10);
+hold on
+plot(target_position(1), target_position(2), 'x', 'MarkerSize', 10);
+drawObstacles();
+
+for i = 1:segments_num
+    plot(trajectory(i).points(1, :), trajectory(i).points(2, :), 'o', 'MarkerSize', 10);
+    plot(trajectory(i).curve(1, :), trajectory(i).curve(2, :));
+end
+plot(obstacleCurve(1, :), obstacleCurve(2, :));
+hold off
+
+xlim([0, 9])
+ylim([0, 9])
+
+%% PLOT ANIMATION
+
+% for tt = 1:length(t)
+%     figure(3)
+%     plot(trajectory(3).curve(1, :), trajectory(3).curve(2, :));
+%     hold on
+%     plot(obstacleCurve(1, :), obstacleCurve(2, :));
+%     
+%     plot(trajectory(3).curve(1, tt), trajectory(3).curve(2, tt), 'o', 'MarkerSize', 10)
+%     plot(obstacleCurve(1, tt), obstacleCurve(2, tt), 'o', 'MarkerSize', 10)
+%     drawObstacles()
+%     plotCircle(trajectory(3).curve(1, tt), trajectory(3).curve(2, tt), safeDist)
+%     hold off
+%     xlim([0, 9])
+%     ylim([0, 9])
+%     drawnow
+% end
+
+
+%% DIVIDE CURVE
+
+tau = 0.5;          % Moment of collision
