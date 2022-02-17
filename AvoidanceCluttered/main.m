@@ -10,7 +10,7 @@ addpath('./Functions')
 n = 5;              % Spatial Beziér Curve Order
 m = 3;              % Temporal Beziér Curve Order
 d = 2;              % Space Dimension
-r = 2;              % Shape Parameter
+r = 5;              % Shape Parameter
 segments_num = 5;   % Number of Segments
 t = 0:0.01:1;       % Time Vector (for visualization)
 
@@ -232,3 +232,115 @@ ylim([0, 9])
 %% DIVIDE CURVE
 
 tau = 0.5;          % Moment of collision
+idx_collision = 3;
+
+[Px1, Px2] = bezierDivision(trajectory(idx_collision).points(1, :), tau, n);
+[Py1, Py2] = bezierDivision(trajectory(idx_collision).points(2, :), tau, n);
+
+for i=segments_num:-1:idx_collision+1
+    trajectory(i+1) = trajectory(i);
+end
+segments_num = segments_num + 1;
+
+trajectory(idx_collision).points(1, :) = Px1;
+trajectory(idx_collision).points(2, :) = Py1;
+trajectory(idx_collision).time = segment_time*tau;
+trajectory(idx_collision).curve = zeros(d, length(t));
+
+for tt = 1:length(t)
+    trajectory(idx_collision).curve(:, tt) = zeros(d, 1);
+    for k = 1:n+1
+        trajectory(idx_collision).curve(:, tt) = trajectory(idx_collision).curve(:, tt) + bernsteinPol(n, k-1, t(tt))*trajectory(idx_collision).points(:, k);
+    end
+end
+
+trajectory(idx_collision+1).points(1, :) = Px2;
+trajectory(idx_collision+1).points(2, :) = Py2;
+trajectory(idx_collision+1).time = segment_time*(1-tau);
+trajectory(idx_collision+1).curve = zeros(d, length(t));
+
+for tt = 1:length(t)
+    trajectory(idx_collision+1).curve(:, tt) = zeros(d, 1);
+    for k = 1:n+1
+        trajectory(idx_collision+1).curve(:, tt) = trajectory(idx_collision+1).curve(:, tt) + bernsteinPol(n, k-1, t(tt))*trajectory(idx_collision+1).points(:, k);
+    end
+end
+
+%% PLOT
+
+figure(4)
+plot(start_position(1), start_position(2), 'x', 'MarkerSize', 10);
+hold on
+plot(target_position(1), target_position(2), 'x', 'MarkerSize', 10);
+drawObstacles();
+
+for i = 1:segments_num
+    plot(trajectory(i).points(1, :), trajectory(i).points(2, :), 'o', 'MarkerSize', 10);
+    plot(trajectory(i).curve(1, :), trajectory(i).curve(2, :));
+end
+plot(obstacleCurve(1, :), obstacleCurve(2, :));
+hold off
+
+xlim([0, 9])
+ylim([0, 9])
+
+%% SETUP OPTIMIZATION PROBLEM
+
+segments__opt_num = 2;
+Hcost = [];
+for k = 1:segments__opt_num*d
+    Hcost = blkdiag(Hcost, DHD);
+end
+
+J = @(x) x'*Hcost*x;
+%% Equality Constraints
+Aeq = [];
+for k = 1:segments__opt_num-1
+    Aeq = [Aeq, zeros(3*(k-1), n+1); zeros(3, (k-1)*(n+1)), AC];
+end
+Aeq = [AposInit, zeros(1, (n+1)*(segments__opt_num-1));
+       Aeq;
+       zeros(1, (n+1)*(segments__opt_num-1)), AposFinal];
+
+Aeq = blkdiag(Aeq, Aeq);
+
+beq = [trajectory(idx_collision).points(1, 1); zeros(3*(segments__opt_num-1), 1); trajectory(idx_collision+1).points(1, end);
+       trajectory(idx_collision).points(2, 1); zeros(3*(segments__opt_num-1), 1); trajectory(idx_collision+1).points(2, end)];
+% Aeq e beq must be converted to be able to accept d=2 and d=3
+
+%% Safe Region Constraints
+AEx = blkdiag(AE3x, AE3x);
+AEy = blkdiag(AE3y, AE3y);
+
+bEx = [bE3x; bE3x];
+bEy = [bE3y; bE3y];
+
+AE = blkdiag(AEx, AEy);
+bE = [bEx; bEy];
+
+%% Dynamic Contraints
+AvFull = [];
+for i = 1:segments__opt_num
+    AvFull = blkdiag(AvFull, Av);
+end
+
+AvFull = [AvFull; -AvFull];
+AvFull = blkdiag(AvFull, AvFull);
+
+AaFull = [];
+for i = 1:segments__opt_num
+    AaFull = blkdiag(AaFull, Aa);
+end
+
+AaFull = [AaFull; -AaFull];
+AaFull = blkdiag(AaFull, AaFull);
+
+Adyn = [AvFull; AaFull];
+
+bdyn = [repmat(bv, 2*d*segments__opt_num, 1); repmat(ba, 2*d*segments__opt_num, 1)];
+
+%% Replan
+x0 = [trajectory(idx_collision).points(1, :), trajectory(idx_collision+1).points(1, :), trajectory(idx_collision).points(2, :), trajectory(idx_collision+1).points(2, :)]';
+opts = optimoptions('fmincon','Algorithm','sqp');
+
+[x, fval] = fmincon(J, x0, [Adyn; AE], [bdyn;bE], Aeq, beq);
