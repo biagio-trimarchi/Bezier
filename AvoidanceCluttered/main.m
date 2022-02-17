@@ -1,0 +1,154 @@
+%% AVOIDANCE CLUTTERED
+
+%% SETUP
+clear 
+clc 
+addpath('./Functions')
+
+%% PARAMETERS
+n = 5;              % Spatial Beziér Curve Order
+m = 3;              % Temporal Beziér Curve Order
+d = 2;              % Space Dimension
+r = 3;              % Shape Parameter
+segments_num = 5;   % Number of Segments
+t = 0:0.01:1;       % Time Vector (for visualization)
+
+%% MISSION PARAMETERS
+start_position = [1; 1];                    % Start Position
+target_position = [8; 3];                   % Target Position
+segment_time = 2;                           % Time Allocated to each Segment
+total_time = segments_num*segment_time;     % Total Mission Time
+
+%% VEHICLE PARAMETERS
+velocity_max = 10;          % Maximum Velocity
+acceleration_max = 5;       % Maximum Acceleration
+safeDist = 0.25;            % SafeDistance
+
+%% SAFE REGIONS
+% Safe Region 1
+AE1x = eye(n+1);
+AE1y = -eye(n+1);
+bE1x = 2*ones(n+1, 1) - safeDist;
+bE1y = zeros(n+1, 1) - safeDist;
+
+% Safe Region 2
+AE2x = eye(n+1);
+AE2y = [-eye(n+1); eye(n+1)];
+bE2x = 5*ones(n+1, 1) - safeDist;
+bE2y = [-2*ones(n+1, 1) - safeDist; 3*ones(n+1, 1) - safeDist];
+
+% Safe Region 3
+AE3x = [-eye(n+1); eye(n+1)];
+AE3y = -eye(n+1);
+bE3x = [-4*ones(n+1, 1)-safeDist; 5*ones(n+1, 1)-safeDist];
+bE3y = zeros(n+1, 1)-safeDist;
+
+% Safe Region 4
+AE4x = -eye(n+1);
+AE4y = [-eye(n+1); eye(n+1)];
+bE4x = -4*ones(n+1, 1)-safeDist;
+bE4y = [zeros(n+1, 1)-safeDist; ones(n+1, 1)-safeDist];
+
+% Safe Region 5
+AE5x = -eye(n+1);
+AE5y = -eye(n+1);
+bE5x = -7*ones(n+1, 1)-safeDist;
+bE5y = zeros(n+1, 1)-safeDist;
+
+%% Dynamic Constraints
+Av = [computeD(n, 1); -computeD(n, 1)];
+bv = ones(2*n, 1)*velocity_max*segment_time/n;
+
+Aa = [computeD(n, 2); -computeD(n, 2)];
+ba = ones(2*(n-1), 1)*acceleration_max*segment_time/(n*(n-1));
+
+%% Initial/Final Position
+AposInit = [1, zeros(1, n)];
+AposFinal = [zeros(1, n), 1];
+
+bposInitx = [start_position(1)];
+bposInity = [start_position(2)];
+bposFinalx = [target_position(1)];
+bposFinaly = [target_position(2)];
+
+%% Continuity Constraints
+AposC = [zeros(1, n), 1, -1, zeros(1, n)];
+AvelC = [zeros(1, n-1), -1, 1, 1, -1, zeros(1, n-1)];
+AaccC = [zeros(1, n-2), 1, -2, 1, -1, 2, -1, zeros(1, n-2)];
+
+AC = [AposC; AvelC; AaccC];
+
+%% Build Equality Matrix
+Aeq = [];
+for k = 1:segments_num-1
+    Aeq = [Aeq, zeros(3*(k-1), n+1); zeros(3, (k-1)*(n+1)), AC];
+end
+Aeq = [AposInit, zeros(1, (n+1)*(segments_num-1));
+       Aeq;
+       zeros(1, (n+1)*(segments_num-1)), AposFinal];
+
+Aeq = blkdiag(Aeq, Aeq);
+
+beq = [bposInitx; zeros(3*(segments_num-1), 1); bposFinalx;
+       bposInity; zeros(3*(segments_num-1), 1); bposFinaly];
+% Aeq e beq must be converted to be able to accept d=2 and d=3
+   
+%% SAFE REGION CONSTRAINTS
+AEx = blkdiag(AE1x, AE2x, AE3x, AE4x, AE5x);
+AEy = blkdiag(AE1y, AE2y, AE3y, AE4y, AE5y);
+
+bEx = [bE1x; bE2x; bE3x; bE4x; bE5x];
+bEy = [bE1y; bE2y; bE3y; bE4y; bE5y];
+
+AE = blkdiag(AEx, AEy);
+bE = [bEx; bEy];
+%% Find Initial Trajectory
+% Cost
+H = computeH(n, r);
+D = computeD(n, r);
+DHD = D'*H*D;
+Hcost = [];
+for k = 1:segments_num*d
+    Hcost = blkdiag(Hcost, DHD);
+end
+
+x = quadprog(Hcost, [], AE, bE, Aeq, beq);
+
+%% Store Initial Trajectory
+
+trajectory = struct;
+for i = 1:segments_num
+    trajectory(i).points = zeros(d, n+1);
+    for j = 1:d
+    trajectory(i).points(j, :) = [x((j-1)*(n+1)*segments_num + (i-1)*(n+1)+1: ...
+                                    (j-1)*(n+1)*segments_num + i*(n+1))];
+    end
+    trajectory(i).time = segment_time;
+    trajectory(i).curve = zeros(d, length(t));
+    
+    for tt = 1:length(t)
+        trajectory(i).curve(:, tt) = zeros(d, 1);
+        for k = 1:n+1
+            trajectory(i).curve(:, tt) = trajectory(i).curve(:, tt) + bernsteinPol(n, k-1, t(tt))*trajectory(i).points(:, k);
+        end
+    end
+end
+
+
+%% PLOTS
+
+figure(1)
+plot(start_position(1), start_position(2), 'x', 'MarkerSize', 10);
+hold on
+plot(target_position(1), target_position(2), 'x', 'MarkerSize', 10);
+drawObstacles();
+
+for i = 1:segments_num
+    plot(trajectory(i).points(1, :), trajectory(i).points(2, :), 'o', 'MarkerSize', 10);
+    plot(trajectory(i).curve(1, :), trajectory(i).curve(2, :));
+end
+hold off
+
+xlim([0, 9])
+ylim([0, 9])
+
