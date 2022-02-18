@@ -22,9 +22,9 @@ segment_time = 2;                           % Time Allocated to each Segment
 total_time = segments_num*segment_time;     % Total Mission Time
 
 %% VEHICLE PARAMETERS
-velocity_max = 1000;          % Maximum Velocity
-acceleration_max = 100;       % Maximum Acceleration
-safeDist = 0.25;            % SafeDistance
+velocity_max = 50;          % Maximum Velocity
+acceleration_max = 20;       % Maximum Acceleration
+safeDist = 0.2;            % SafeDistance
 
 %% SAFE REGIONS
 % Safe Region 1
@@ -247,11 +247,13 @@ end
 
 %% DIVIDE CURVE AGENT
 
-tau = 0.8;          % Moment of collision
+tau = 0.5;          % Moment of collision
 idx_collision = 3;
 
 [Px1, Px2] = bezierDivision(trajectory(idx_collision).points(1, :), tau, n);
 [Py1, Py2] = bezierDivision(trajectory(idx_collision).points(2, :), tau, n);
+
+oldPoints = trajectory(idx_collision).points;
 
 for i=segments_num:-1:idx_collision+1
     trajectory(i+1) = trajectory(i);
@@ -395,7 +397,7 @@ bdyn = [repmat(bv, 2*d*segments__opt_num, 1); repmat(ba, 2*d*segments__opt_num, 
 
 %% REPLAN
 x0 = [trajectory(idx_collision).points(1, :), trajectory(idx_collision+1).points(1, :), trajectory(idx_collision).points(2, :), trajectory(idx_collision+1).points(2, :)]';
-opts = optimoptions('fmincon','Algorithm','sqp', 'MaxFunctionEvaluation', inf, 'MaxIterations', inf);
+opts = optimoptions('fmincon','Algorithm','sqp', 'MaxFunctionEvaluation', 1e4, 'MaxIterations', 1e4);
 
 Q = computeQ(n);
 constr = @(x) nlCnstP(x, obstaclePointsDiv1, obstaclePointsDiv2, n, d, safeDist, Q);
@@ -471,4 +473,21 @@ xlim([0, 9])
 ylim([0, 9])
 
 %% %% OPTIMIZATION P/U (ONLY U?)
+
+Udrone = [0, 0.3, 0.7, 1];
+Uobstacle = [0, 0.3, 0.7, 1];
+
+Q = computeQ(n*m);
+
+J = @(x) costU(x, m);
+Co = BezierComposition(obstaclePoints(:, 1), obstaclePoints(:, 2), ...
+                       obstaclePoints(:, 3), obstaclePoints(:, 4), ...
+                       obstaclePoints(:, 5), obstaclePoints(:, 6), ...
+                       Uobstacle(1), Uobstacle(2), ...
+                       Uobstacle(3), Uobstacle(4));
+Co = reshape(Co, d, []);
+constr = @(x) nlCnstU(x, oldPoints, Co, n, m ,d, safeDist, Q);
+
+Aeq = [1, zeros(1, m); zeros(1, m), 1];
+beq = [0; 1];
 
