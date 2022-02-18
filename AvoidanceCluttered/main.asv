@@ -247,7 +247,7 @@ end
 
 %% DIVIDE CURVE AGENT
 
-tau = 0.8;          % Moment of collision
+tau = 0.7;          % Moment of collision
 idx_collision = 3;
 
 [Px1, Px2] = bezierDivision(trajectory(idx_collision).points(1, :), tau, n);
@@ -395,7 +395,7 @@ bdyn = [repmat(bv, 2*d*segments__opt_num, 1); repmat(ba, 2*d*segments__opt_num, 
 
 %% REPLAN
 x0 = [trajectory(idx_collision).points(1, :), trajectory(idx_collision+1).points(1, :), trajectory(idx_collision).points(2, :), trajectory(idx_collision+1).points(2, :)]';
-opts = optimoptions('fmincon','Algorithm','sqp', 'MaxFunctionEvaluation', inf, 'MaxIterations', inf);
+opts = optimoptions('fmincon','Algorithm','interior-point', 'MaxFunctionEvaluation', inf, 'MaxIt');
 
 Q = computeQ(n);
 constr = @(x) nlCnstP(x, obstaclePointsDiv1, obstaclePointsDiv2, n, d, safeDist, Q);
