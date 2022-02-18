@@ -405,8 +405,6 @@ constr = @(x) nlCnstP(x, obstaclePointsDiv1, obstaclePointsDiv2, n, d, safeDist,
 tic
 [x, fval] = fmincon(J, x0, [Adyn; AE], [bdyn;bE], Aeq, beq, [], [], constr, opts);
 toc
-x1 = quadprog(Hcost, [], [Adyn; AE], [bdyn;bE], Aeq, beq);
-
 
 %% STORE REPLANNED PATH
 for i = 1:segments__opt_num
@@ -491,3 +489,87 @@ constr = @(x) nlCnstU(x, oldPoints, Co, n, m ,d, safeDist, Q);
 Aeq = [1, zeros(1, m); zeros(1, m), 1];
 beq = [0; 1];
 
+lb = zeros(m+1, 1);
+ub = ones(m+1, 1);
+
+% Add dynamic contraints
+
+tic
+x = fmincon(J, Udrone, [], [], Aeq, beq, lb, ub, constr, opts);
+toc
+
+UNew = x;
+
+%% COMPUTE DISTANCE
+C = BezierComposition(oldPoints(:, 1), oldPoints(:, 2), ...
+                      oldPoints(:, 3), oldPoints(:, 4), ...
+                      oldPoints(:, 5), oldPoints(:, 6), ...
+                      UNew(1), UNew(2), UNew(3), UNew(4));
+C = reshape(C, d, []);
+diff = C - Co;
+
+normPoints = zeros(2*n*m+1, 1);
+for k = 0:2*n*m
+    for j = 1:d
+        normPoints(k+1) = diff(j, :)*Q(:, :, k+1)*diff(j, :)';
+    end
+end
+
+normBez = zeros(1, length(t));
+for tt = 1:length(t)
+    normBez(tt) = 0;
+    for k = 1:2*(n*m)+1
+        normBez(tt) = normBez(tt) + bernsteinPol(2*n*m, k-1, t(tt))*normPoints(k);
+    end
+end
+
+%% PLOT DISTANCE
+
+
+figure(19)
+plot(normBez);
+hold on
+plot(safeDist^2*ones(length(normBez), 1))
+hold off
+
+%% CURVES
+bezierCurveD = zeros(d, length(t));
+for tt = 1:length(t)
+    bezierCurveD(:, tt) = zeros(d, 1);
+    u = 0;
+    for k = 1:m+1
+        u = u + bernsteinPol(m, k-1, t(tt))*UNew(k);
+    end
+    for k = 1:n+1
+        bezierCurveD(:, tt) = bezierCurveD(:, tt) + bernsteinPol(n, k-1, u)*oldPoints(:, k);
+    end
+end
+
+bezierCurveO = zeros(d, length(t));
+for tt = 1:length(t)
+    bezierCurveO(:, tt) = zeros(d, 1);
+    u = 0;
+    for k = 1:m+1
+        u = u + bernsteinPol(m, k-1, t(tt))*Uobstacle(k);
+    end
+    for k = 1:n+1
+        bezierCurveO(:, tt) = bezierCurveO(:, tt) + bernsteinPol(n, k-1, u)*obstaclePoints(:, k);
+    end
+end
+
+for tt = 1:length(t)
+    figure(20)
+    plot(bezierCurveD(1, :), bezierCurveD(2, :));
+    hold on
+    plot(bezierCurveO(1, :), bezierCurveO(2, :));
+    
+    plot(bezierCurveD(1, tt), bezierCurveD(2, tt), 'x', 'MarkerSize', 5)
+    plot(bezierCurveO(1, tt), bezierCurveO(2, tt), 'x', 'MarkerSize', 5)
+    drawObstacles()
+    plotCircle(bezierCurveD(1, tt), bezierCurveD(2, tt), safeDist)
+    plotCircle(bezierCurveO(1, tt), bezierCurveO(2, tt), safeDist)
+    hold off
+    xlim([0, 9])
+    ylim([0, 9])
+    drawnow
+end
