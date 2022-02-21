@@ -22,9 +22,9 @@ segment_time = 5;                           % Time Allocated to each Segment
 total_time = segments_num*segment_time;     % Total Mission Time
 
 %% VEHICLE PARAMETERS
-velocity_max = 50;         % Maximum Velocity
+velocity_max = 100;         % Maximum Velocity
 acceleration_max = 20;     % Maximum Acceleration
-safeDist = 1;              % SafeDistance
+safeDist = 1.2;              % SafeDistance
 
 %% SAFE REGIONS
 % Safe Region 1
@@ -39,7 +39,7 @@ bE1z = [zeros(n+1, 1) - safeDist; 9*ones(n+1, 1) - safeDist];
 AE2x = [-eye(n+1); eye(n+1)];
 AE2y = [-eye(n+1); eye(n+1)];
 AE2z = [-eye(n+1); eye(n+1)];
-bE2x = [5*ones(n+1, 1) - safeDist; 8*ones(n+1, 1) - safeDist];
+bE2x = [10*ones(n+1, 1) - safeDist; 20*ones(n+1, 1) - safeDist];
 bE2y = [-3*ones(n+1, 1) - safeDist; 6*ones(n+1, 1) - safeDist];
 bE2z = [-3*ones(n+1, 1) - safeDist; 6*ones(n+1, 1) - safeDist];
 
@@ -47,7 +47,7 @@ bE2z = [-3*ones(n+1, 1) - safeDist; 6*ones(n+1, 1) - safeDist];
 AE3x = -eye(n+1);
 AE3y = [-eye(n+1); eye(n+1)];
 AE3z = [-eye(n+1); eye(n+1)];
-bE3x = -5*ones(n+1, 1) - safeDist;
+bE3x = -8*ones(n+1, 1) - safeDist;
 bE3y = [zeros(n+1, 1) - safeDist; 9*ones(n+1, 1) - safeDist];
 bE3z = [zeros(n+1, 1) - safeDist; 9*ones(n+1, 1) - safeDist];
 
@@ -188,10 +188,10 @@ plotWall();
 
 for i = 1:segments_num
     plot3(trajectory(i).points(1, :), trajectory(i).points(2, :), trajectory(i).points(3, :), 'o', 'MarkerSize', 10);
-    plot3(trajectory(i).curve(1, :), trajectory(i).curve(2, :), trajectory(i).curve(3, :));
-    for tt = 1:10:length(t)
-        plotSphere(trajectory(i).curve(1, tt), trajectory(i).curve(2, tt), trajectory(i).curve(3, tt), safeDist)
-    end
+    plot3(trajectory(i).curve(1, :), trajectory(i).curve(2, :), trajectory(i).curve(3, :), 'LineWidth', 5);
+%     for tt = 1:10:length(t)
+%         plotSphere(trajectory(i).curve(1, tt), trajectory(i).curve(2, tt), trajectory(i).curve(3, tt), safeDist)
+%     end
 end
 hold off
 
@@ -199,3 +199,145 @@ xlim([-5, 20])
 ylim([0, 9])
 zlim([0, 9])
 
+%% OBSTACLE PATH
+obstaclePoints = [  0,   2,   4,   6,   9,  10;
+                    6,   4,   4,   4,   4,   3;
+                    9,   7,   5,   5,   5,   3];
+
+obstacleCurve = zeros(d, length(t));
+for tt = 1:length(t)
+    obstacleCurve(:, tt) = zeros(d, 1);
+    for k = 1:n+1
+        obstacleCurve(:, tt) = obstacleCurve(:, tt) + bernsteinPol(n, k-1, t(tt))*obstaclePoints(:, k);
+    end
+end
+
+%% PLOTS
+
+figure(2)
+plot3(start_position(1), start_position(2), start_position(2), '.g', 'MarkerSize', 50);
+hold on
+plot3(target_position(1), target_position(2), target_position(3), '.r', 'MarkerSize', 50);
+plotWall();
+
+for i = 1:segments_num
+    plot3(trajectory(i).points(1, :), trajectory(i).points(2, :), trajectory(i).points(3, :), 'o', 'MarkerSize', 10);
+    plot3(trajectory(i).curve(1, :), trajectory(i).curve(2, :), trajectory(i).curve(3, :), 'LineWidth', 5);
+    for tt = 1:10:length(t)
+        plotSphere(trajectory(i).curve(1, tt), trajectory(i).curve(2, tt), trajectory(i).curve(3, tt), safeDist)
+    end
+end
+plot3(obstacleCurve(1, :), obstacleCurve(2, :), obstacleCurve(3, :), 'LineWidth', 5);
+hold off
+
+xlim([-5, 20])
+ylim([0, 9])
+zlim([0, 9])
+
+%% %% OPTIMIZATION P/U (ONLY U?)
+idx_collision = 2;
+oldPoints = trajectory(idx_collision).points;
+
+
+Udrone = [0, 0.3, 0.7, 1];
+Uobstacle = [0, 0.3, 0.6, 1];
+
+Q = computeQ(n*m);
+
+J = @(x) costU(x, m);
+Co = BezierComposition(obstaclePoints(:, 1), obstaclePoints(:, 2), ...
+                       obstaclePoints(:, 3), obstaclePoints(:, 4), ...
+                       obstaclePoints(:, 5), obstaclePoints(:, 6), ...
+                       Uobstacle(1), Uobstacle(2), ...
+                       Uobstacle(3), Uobstacle(4));
+Co = reshape(Co, d, []);
+constr = @(x) nlCnstU(x, oldPoints, Co, n, m , d, safeDist, Q);
+
+
+Aeq = [1, zeros(1, m); zeros(1, m), 1];
+beq = [0; 1];
+
+lb = zeros(m+1, 1);
+ub = ones(m+1, 1);
+
+% Add dynamic contraints
+
+opts = optimoptions('fmincon','Algorithm','sqp', 'MaxFunctionEvaluation', 1e4, 'MaxIterations', 1e4);
+tic
+x = fmincon(J, Udrone, [], [], Aeq, beq, lb, ub, constr, opts);
+toc
+nlCnstU(x, oldPoints, Co, n, m , d, safeDist, Q)
+UNew = x;
+
+%% COMPUTE DISTANCE
+C = BezierComposition(oldPoints(:, 1), oldPoints(:, 2), ...
+                      oldPoints(:, 3), oldPoints(:, 4), ...
+                      oldPoints(:, 5), oldPoints(:, 6), ...
+                      Udrone(1), Udrone(2), Udrone(3), Udrone(4));
+C = reshape(C, d, []);
+diff = C - Co;
+
+normPoints = zeros(2*n*m+1, 1);
+for k = 0:2*n*m
+    for j = 1:d
+        normPoints(k+1) = normPoints(k+1) + diff(j, :)*Q(:, :, k+1)*diff(j, :)';
+    end
+end
+
+normBez = zeros(1, length(t));
+for tt = 1:length(t)
+    normBez(tt) = 0;
+    for k = 1:2*(n*m)+1
+        normBez(tt) = normBez(tt) + bernsteinPol(2*n*m, k-1, t(tt))*normPoints(k);
+    end
+end
+
+%% PLOT DISTANCE
+
+figure(19)
+plot(normBez);
+hold on
+plot(safeDist^2*ones(length(normBez), 1))
+hold off
+
+%% CURVES
+bezierCurveD = zeros(d, length(t));
+for tt = 1:length(t)
+    bezierCurveD(:, tt) = zeros(d, 1);
+    u = 0;
+    for k = 1:m+1
+        u = u + bernsteinPol(m, k-1, t(tt))*UNew(k);
+    end
+    for k = 1:n+1
+        bezierCurveD(:, tt) = bezierCurveD(:, tt) + bernsteinPol(n, k-1, u)*oldPoints(:, k);
+    end
+end
+
+bezierCurveO = zeros(d, length(t));
+for tt = 1:length(t)
+    bezierCurveO(:, tt) = zeros(d, 1);
+    u = 0;
+    for k = 1:m+1
+        u = u + bernsteinPol(m, k-1, t(tt))*Uobstacle(k);
+    end
+    for k = 1:n+1
+        bezierCurveO(:, tt) = bezierCurveO(:, tt) + bernsteinPol(n, k-1, u)*obstaclePoints(:, k);
+    end
+end
+
+% for tt = 1:length(t)
+%     figure(20)
+%     plot3(bezierCurveD(1, :), bezierCurveD(2, :), bezierCurveD(3, :));
+%     hold on
+%     plot3(bezierCurveO(1, :), bezierCurveO(2, :), bezierCurveO(3, :));
+%     
+%     plot3(bezierCurveD(1, tt), bezierCurveD(2, tt), bezierCurveD(3, tt), 'x', 'MarkerSize', 5)
+%     plot3(bezierCurveO(1, tt), bezierCurveO(2, tt), bezierCurveO(3, tt), 'x', 'MarkerSize', 5)
+%     plotWall()
+%     plotSphere(bezierCurveD(1, tt), bezierCurveD(2, tt), bezierCurveD(3, tt), safeDist)
+%     hold off
+%     xlim([-5, 20])
+%     ylim([0, 9])
+%     zlim([0, 9])
+%     drawnow
+% end

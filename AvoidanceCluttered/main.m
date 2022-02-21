@@ -24,7 +24,7 @@ total_time = segments_num*segment_time;     % Total Mission Time
 %% VEHICLE PARAMETERS
 velocity_max = 50;          % Maximum Velocity
 acceleration_max = 20;       % Maximum Acceleration
-safeDist = 0.2;            % SafeDistance
+safeDist = 0.3;            % SafeDistance
 
 %% SAFE REGIONS
 % Safe Region 1
@@ -511,7 +511,7 @@ diff = C - Co;
 normPoints = zeros(2*n*m+1, 1);
 for k = 0:2*n*m
     for j = 1:d
-        normPoints(k+1) = diff(j, :)*Q(:, :, k+1)*diff(j, :)';
+        normPoints(k+1) = normPoints(k+1) + diff(j, :)*Q(:, :, k+1)*diff(j, :)';
     end
 end
 
@@ -524,7 +524,6 @@ for tt = 1:length(t)
 end
 
 %% PLOT DISTANCE
-
 
 figure(19)
 plot(normBez);
