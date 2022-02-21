@@ -1,0 +1,105 @@
+%% %% %% AVOIDANCE CLUTTERED %% %% %%
+% Notes
+
+%% SETUP
+clear 
+clc 
+addpath('./Functions')
+
+%% PARAMETERS
+n = 5;              % Spatial Beziér Curve Order
+m = 3;              % Temporal Beziér Curve Order
+d = 3;              % Space Dimension
+r = 2;              % Shape Parameter
+segments_num = 3;   % Number of Segments
+t = 0:0.01:1;       % Time Vector (for visualization)
+
+%% %% INITIAL MISSION PLANNING
+%% MISSION PARAMETERS
+start_position = [0; 7; 7];                 % Start Position
+target_position = [10; 5; 3];               % Target Position
+segment_time = 5;                           % Time Allocated to each Segment
+total_time = segments_num*segment_time;     % Total Mission Time
+
+%% VEHICLE PARAMETERS
+velocity_max = 50;         % Maximum Velocity
+acceleration_max = 20;     % Maximum Acceleration
+safeDist = 0.2;            % SafeDistance
+
+%% SAFE REGIONS
+% Safe Region 1
+AE1x = eye(n+1);
+bE1x = 5*ones(n+1, 1) - safeDist;
+
+% Safe Region 2
+AE2x = [-eye(n+1), eye(n+1)];
+AE2y = [-eye(n+1); eye(n+1)];
+AE2z = [-eye(n+1); eye(n+1)];
+bE2x = [5*ones(n+1, 1) - safeDist; 8*ones(n+1, 1) - safeDist];
+bE2y = [-3*ones(n+1, 1) - safeDist; 6*ones(n+1, 1) - safeDist];
+bE2z = [-3*ones(n+1, 1) - safeDist; 6*ones(n+1, 1) - safeDist];
+
+% Safe Region 3
+AE3x = -eye(n+1);
+bE3x = -5*ones(n+1, 1) - safeDist;
+
+%% DYNAMIC CONSTRAINTS
+Av = [computeD(n, 1); -computeD(n, 1)];
+bv = ones(2*n, 1)*velocity_max*segment_time/n;
+
+Aa = [computeD(n, 2); -computeD(n, 2)];
+ba = ones(2*(n-1), 1)*acceleration_max*segment_time/(n*(n-1));
+
+%% INITIAL/FINAL CONDITIONS
+AposInit = [1, zeros(1, n)];
+AposFinal = [zeros(1, n), 1];
+AvelInit = [-1, 1, zeros(1, n-1)];
+AvelFinal = [zeros(1, n-1), -1, 1];
+AaccInit = [1, -2, 1, zeros(1, n-2)];
+AaccFinal = [zeros(1, n-2), 1, -2, 1];
+
+bposInitx = start_position(1);
+bposInity = start_position(2);
+bposInitz = start_position(3);
+bposFinalx = target_position(1);
+bposFinaly = target_position(2);
+bposFinalz = target_position(3);
+bvelInitx = 0;
+bvelInity = 0;
+bvelInitz = 0;
+bvelFinalx = 0;
+bvelFinaly = 0;
+bvelFinalz = 0;
+baccInitx = 0;
+baccInity = 0;
+baccInitz = 0;
+baccFinalx = 0;
+baccFinaly = 0;
+baccFinalz = 0;
+
+%% CONTINUITY CONSTRAINTS
+AposC = [zeros(1, n), 1, -1, zeros(1, n)];
+AvelC = [zeros(1, n-1), -1, 1, 1, -1, zeros(1, n-1)];
+AaccC = [zeros(1, n-2), 1, -2, 1, -1, 2, -1, zeros(1, n-2)];
+
+AC = [AposC; AvelC; AaccC];
+
+%% BUILD EQUALITY MATRIX
+Aeq = [];
+for k = 1:segments_num-1
+    Aeq = [Aeq, zeros(3*(k-1), n+1); zeros(3, (k-1)*(n+1)), AC];
+end
+Aeq = [AposInit, zeros(1, (n+1)*(segments_num-1));
+       AvelInit, zeros(1, (n+1)*(segments_num-1));
+       AaccInit, zeros(1, (n+1)*(segments_num-1));
+       Aeq;
+       zeros(1, (n+1)*(segments_num-1)), AposFinal;
+       zeros(1, (n+1)*(segments_num-1)), AvelFinal;
+       zeros(1, (n+1)*(segments_num-1)), AaccFinal;];
+
+Aeq = blkdiag(Aeq, Aeq, Aeq);
+
+beq = [bposInitx; bvelInitx; baccInitx; zeros(3*(segments_num-1), 1); bposFinalx; bvelFinalx; baccFinalx;
+       bposInity; bvelInity; baccInity; zeros(3*(segments_num-1), 1); bposFinaly; bvelFinaly; baccFinaly;
+       bposInity; bvelInity; baccInity; zeros(3*(segments_num-1), 1); bposFinaly; bvelFinaly; baccFinaly];
+% Aeq e beq must be converted to be able to accept d=2 and d=3
