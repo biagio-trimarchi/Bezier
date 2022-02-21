@@ -6,6 +6,10 @@ clear
 clc 
 addpath('./Functions')
 
+%% PLOT PARAMETERS
+markerSize = 15;
+lineWidth = 1.5;
+
 %% PARAMETERS
 n = 5;              % Spatial Beziér Curve Order
 m = 3;              % Temporal Beziér Curve Order
@@ -179,14 +183,14 @@ end
 %% PLOTS
 
 figure(1)
-plot(start_position(1), start_position(2), 'x', 'MarkerSize', 10);
+plot(start_position(1), start_position(2), '.g', 'MarkerSize', markerSize);
 hold on
-plot(target_position(1), target_position(2), 'x', 'MarkerSize', 10);
+plot(target_position(1), target_position(2), '.r', 'MarkerSize', markerSize);
 drawObstacles();
 
 for i = 1:segments_num
-    plot(trajectory(i).points(1, :), trajectory(i).points(2, :), 'o', 'MarkerSize', 10);
-    plot(trajectory(i).curve(1, :), trajectory(i).curve(2, :));
+    %plot(trajectory(i).points(1, :), trajectory(i).points(2, :), 'o', 'MarkerSize', markerSize);
+    plot(trajectory(i).curve(1, :), trajectory(i).curve(2, :), 'LineWidth', lineWidth);
 end
 hold off
 
@@ -211,16 +215,16 @@ end
 %% PLOT
 
 figure(2)
-plot(start_position(1), start_position(2), 'x', 'MarkerSize', 10);
+plot(start_position(1), start_position(2), '.g', 'MarkerSize', markerSize);
 hold on
-plot(target_position(1), target_position(2), 'x', 'MarkerSize', 10);
+plot(target_position(1), target_position(2), '.r', 'MarkerSize', markerSize);
 drawObstacles();
 
 for i = 1:segments_num
-    plot(trajectory(i).points(1, :), trajectory(i).points(2, :), 'o', 'MarkerSize', 10);
-    plot(trajectory(i).curve(1, :), trajectory(i).curve(2, :));
+    %plot(trajectory(i).points(1, :), trajectory(i).points(2, :), 'o', 'MarkerSize', lineWidth);
+    plot(trajectory(i).curve(1, :), trajectory(i).curve(2, :), 'LineWidth', lineWidth);
 end
-plot(obstacleCurve(1, :), obstacleCurve(2, :));
+plot(obstacleCurve(1, :), obstacleCurve(2, :), 'LineWidth', lineWidth);
 hold off
 
 xlim([0, 9])
@@ -230,12 +234,12 @@ ylim([0, 9])
 
 for tt = 1:length(t)
     figure(3)
-    plot(trajectory(3).curve(1, :), trajectory(3).curve(2, :));
+    plot(trajectory(3).curve(1, :), trajectory(3).curve(2, :), 'LineWidth', lineWidth);
     hold on
-    plot(obstacleCurve(1, :), obstacleCurve(2, :));
+    plot(obstacleCurve(1, :), obstacleCurve(2, :), 'LineWidth', lineWidth);
     
-    plot(trajectory(3).curve(1, tt), trajectory(3).curve(2, tt), 'o', 'MarkerSize', 10)
-    plot(obstacleCurve(1, tt), obstacleCurve(2, tt), 'o', 'MarkerSize', 10)
+    plot(trajectory(3).curve(1, tt), trajectory(3).curve(2, tt), 'x', 'MarkerSize', markerSize)
+    plot(obstacleCurve(1, tt), obstacleCurve(2, tt), 'x', 'MarkerSize', markerSize)
     drawObstacles()
     plotCircle(trajectory(3).curve(1, tt), trajectory(3).curve(2, tt), safeDist)
     hold off
@@ -312,17 +316,17 @@ end
 %% PLOT
 
 figure(4)
-plot(start_position(1), start_position(2), 'x', 'MarkerSize', 10);
+plot(start_position(1), start_position(2), '.g', 'MarkerSize', markerSize);
 hold on
-plot(target_position(1), target_position(2), 'x', 'MarkerSize', 10);
+plot(target_position(1), target_position(2), '.r', 'MarkerSize', markerSize);
 drawObstacles();
 
 for i = 1:segments_num
-    plot(trajectory(i).points(1, :), trajectory(i).points(2, :), 'o', 'MarkerSize', 10);
-    plot(trajectory(i).curve(1, :), trajectory(i).curve(2, :));
+    %plot(trajectory(i).points(1, :), trajectory(i).points(2, :), 'o', 'MarkerSize', markerSize);
+    plot(trajectory(i).curve(1, :), trajectory(i).curve(2, :), 'LineWidth', lineWidth);
 end
-plot(obstacleCurveDiv1(1, :), obstacleCurveDiv1(2, :));
-plot(obstacleCurveDiv2(1, :), obstacleCurveDiv2(2, :));
+plot(obstacleCurveDiv1(1, :), obstacleCurveDiv1(2, :), 'LineWidth', lineWidth);
+plot(obstacleCurveDiv2(1, :), obstacleCurveDiv2(2, :), 'LineWidth', lineWidth);
 hold off
 
 xlim([0, 9])
@@ -425,12 +429,12 @@ end
 %% PLOTS
 for tt = 1:length(t)
     figure(10)
-    plot(trajectory(3).curve(1, :), trajectory(3).curve(2, :));
+    plot(trajectory(3).curve(1, :), trajectory(3).curve(2, :), 'LineWidth', lineWidth);
     hold on
-    plot(obstacleCurveDiv1(1, :), obstacleCurveDiv1(2, :));
+    plot(obstacleCurveDiv1(1, :), obstacleCurveDiv1(2, :), 'LineWidth', lineWidth);
     
-    plot(trajectory(3).curve(1, tt), trajectory(3).curve(2, tt), 'o', 'MarkerSize', 10)
-    plot(obstacleCurveDiv1(1, tt), obstacleCurveDiv1(2, tt), 'o', 'MarkerSize', 10)
+    plot(trajectory(3).curve(1, tt), trajectory(3).curve(2, tt), 'x', 'MarkerSize', markerSize)
+    plot(obstacleCurveDiv1(1, tt), obstacleCurveDiv1(2, tt), 'x', 'MarkerSize', markerSize)
     drawObstacles()
     plotCircle(trajectory(3).curve(1, tt), trajectory(3).curve(2, tt), safeDist)
     hold off
@@ -441,12 +445,12 @@ end
 
 for tt = 1:length(t)
     figure(11)
-    plot(trajectory(4).curve(1, :), trajectory(4).curve(2, :));
+    plot(trajectory(4).curve(1, :), trajectory(4).curve(2, :), 'LineWidth', lineWidth);
     hold on
-    plot(obstacleCurveDiv2(1, :), obstacleCurveDiv2(2, :));
+    plot(obstacleCurveDiv2(1, :), obstacleCurveDiv2(2, :), 'LineWidth', lineWidth);
     
-    plot(trajectory(4).curve(1, tt), trajectory(4).curve(2, tt), 'o', 'MarkerSize', 10)
-    plot(obstacleCurveDiv2(1, tt), obstacleCurveDiv2(2, tt), 'o', 'MarkerSize', 10)
+    plot(trajectory(4).curve(1, tt), trajectory(4).curve(2, tt), 'x', 'MarkerSize', markerSize)
+    plot(obstacleCurveDiv2(1, tt), obstacleCurveDiv2(2, tt), 'x', 'MarkerSize', markerSize)
     drawObstacles()
     plotCircle(trajectory(4).curve(1, tt), trajectory(4).curve(2, tt), safeDist)
     hold off
@@ -456,14 +460,14 @@ for tt = 1:length(t)
 end
 
 figure(20)
-plot(start_position(1), start_position(2), 'x', 'MarkerSize', 10);
+plot(start_position(1), start_position(2), '.g', 'MarkerSize', markerSize);
 hold on
-plot(target_position(1), target_position(2), 'x', 'MarkerSize', 10);
+plot(target_position(1), target_position(2), '.r', 'MarkerSize', markerSize);
 drawObstacles();
 
 for i = 1:segments_num
-    plot(trajectory(i).points(1, :), trajectory(i).points(2, :), 'o', 'MarkerSize', 10);
-    plot(trajectory(i).curve(1, :), trajectory(i).curve(2, :));
+    %plot(trajectory(i).points(1, :), trajectory(i).points(2, :), 'o', 'MarkerSize', markerSize);
+    plot(trajectory(i).curve(1, :), trajectory(i).curve(2, :), 'LineWidth', lineWidth);
 end
 hold off
 
@@ -558,15 +562,14 @@ end
 
 for tt = 1:length(t)
     figure(20)
-    plot(bezierCurveD(1, :), bezierCurveD(2, :));
+    plot(bezierCurveD(1, :), bezierCurveD(2, :), 'LineWidth', lineWidth);
     hold on
-    plot(bezierCurveO(1, :), bezierCurveO(2, :));
+    plot(bezierCurveO(1, :), bezierCurveO(2, :), 'LineWidth', lineWidth);
     
-    plot(bezierCurveD(1, tt), bezierCurveD(2, tt), 'x', 'MarkerSize', 5)
-    plot(bezierCurveO(1, tt), bezierCurveO(2, tt), 'x', 'MarkerSize', 5)
+    plot(bezierCurveD(1, tt), bezierCurveD(2, tt), 'x', 'MarkerSize', markerSize)
+    plot(bezierCurveO(1, tt), bezierCurveO(2, tt), 'x', 'MarkerSize', markerSize)
     drawObstacles()
     plotCircle(bezierCurveD(1, tt), bezierCurveD(2, tt), safeDist)
-    plotCircle(bezierCurveO(1, tt), bezierCurveO(2, tt), safeDist)
     hold off
     xlim([0, 9])
     ylim([0, 9])
