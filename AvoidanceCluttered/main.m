@@ -22,12 +22,12 @@ t = 0:0.01:1;       % Time Vector (for visualization)
 %% MISSION PARAMETERS
 start_position = [1; 4];                    % Start Position
 target_position = [8; 4];                   % Target Position
-segment_time = 2;                           % Time Allocated to each Segment
+segment_time = 5;                           % Time Allocated to each Segment
 total_time = segments_num*segment_time;     % Total Mission Time
 
 %% VEHICLE PARAMETERS
-velocity_max = 50;          % Maximum Velocity
-acceleration_max = 20;       % Maximum Acceleration
+velocity_max = 1000;          % Maximum Velocity
+acceleration_max = 1000;       % Maximum Acceleration
 safeDist = 0.3;            % SafeDistance
 
 %% SAFE REGIONS
@@ -488,7 +488,6 @@ Co = BezierComposition(obstaclePoints(:, 1), obstaclePoints(:, 2), ...
                        Uobstacle(1), Uobstacle(2), ...
                        Uobstacle(3), Uobstacle(4));
 Co = reshape(Co, d, []);
-constr = @(x) nlCnstU(x, oldPoints, Co, n, m ,d, safeDist, Q);
 
 Aeq = [1, zeros(1, m); zeros(1, m), 1];
 beq = [0; 1];
@@ -496,8 +495,19 @@ beq = [0; 1];
 lb = zeros(m+1, 1);
 ub = ones(m+1, 1);
 
-% Add dynamic contraints
+%% DYNAMIC CONSTRAINTS
+Av = [computeD(n*m, 1); -computeD(n*m, 1)];
+bv = ones(2*n*m, 1)*velocity_max*segment_time/n*m;
 
+Aa = [computeD(n*m, 2); -computeD(n*m, 2)];
+ba = ones(2*(n*m-1), 1)*acceleration_max*segment_time/(n*m*(n*m-1));
+
+Adyn = [Av;-Av; Aa; -Aa];
+Adyn = blkdiag(Adyn, Adyn);
+bdyn = [bv; bv; ba; ba];
+bdyn = [bdyn; bdyn];
+constr = @(x) nlCnstUDyn(x, oldPoints, Co, n, m ,d, safeDist, Q, Adyn, bdyn);
+%% SOLVE OPTIMIZATION
 tic
 x = fmincon(J, Udrone, [], [], Aeq, beq, lb, ub, constr, opts);
 toc
