@@ -1,5 +1,5 @@
 function plotWall()
-
+    alphaFace = 0.4;
     n = 16;
     wall(1).coord = [5, 5, 8, 8;
                      0, 0, 0, 0;
@@ -11,7 +11,7 @@ function plotWall()
 
     wall(3).coord = [5, 5, 8, 8;
                      3, 3, 3, 3;
-                    0, 9, 9, 0];
+                    3, 6, 6, 3];
 
     wall(4).coord = [8, 8, 8, 8;
                      0, 0, 3, 3;
@@ -35,7 +35,7 @@ function plotWall()
 
     wall(9).coord = [5, 5, 8, 8;
                      6, 6, 6, 6;
-                     0, 9, 9, 0];
+                     3, 6, 6, 3];
       
     wall(10).coord = [5, 5, 5, 5;
                       6, 6, 9, 9;
@@ -66,6 +66,6 @@ function plotWall()
                       9, 9, 9, 9];
 
     for i =1:n
-        patch(wall(i).coord(1, :), wall(i).coord(2, :), wall(i).coord(3, :), 'black')
+        patch(wall(i).coord(1, :), wall(i).coord(2, :), wall(i).coord(3, :), 'black', 'FaceAlpha', alphaFace, 'EdgeColor', 'none')
     end
 end
