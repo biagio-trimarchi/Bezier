@@ -22,12 +22,12 @@ t = 0:0.01:1;       % Time Vector (for visualization)
 %% MISSION PARAMETERS
 start_position = [1; 4];                    % Start Position
 target_position = [8; 4];                   % Target Position
-segment_time = 10;                           % Time Allocated to each Segment
+segment_time = 3;                           % Time Allocated to each Segment
 total_time = segments_num*segment_time;     % Total Mission Time
 
 %% VEHICLE PARAMETERS
-velocity_max = 200;          % Maximum Velocity
-acceleration_max = 200;       % Maximum Acceleration
+velocity_max = 2000;          % Maximum Velocity
+acceleration_max = 2000;       % Maximum Acceleration
 safeDist = 0.3;            % SafeDistance
 
 %% SAFE REGIONS
@@ -498,8 +498,8 @@ ylim([0, 9])
 
 %% %% OPTIMIZATION P/U (ONLY U?)
 
-Udrone1 = [0, 0.3, 0.7, 1];
-Udrone2 = [0, 0.3, 0.7, 1];
+Udrone1 = [0, 0.5, 0.7, 1];
+Udrone2 = [0, 0.3, 0.5, 1];
 Uobstacle = [0, 0.2, 0.5, 1];
 
 Q = computeQ(n*m);
@@ -519,88 +519,133 @@ lb = [0; 0];
 ub = [1; 1];
 
 %% DYNAMIC CONSTRAINTS
-% Av = [computeD(n*m, 1); -computeD(n*m, 1)];
-% bv = ones(2*n*m, 1)*velocity_max*segment_time/n*m;
-% 
-% Aa = [computeD(n*m, 2); -computeD(n*m, 2)];
-% ba = ones(2*(n*m-1), 1)*acceleration_max*segment_time/(n*m*(n*m-1));
-% 
-% Adyn = [Av;-Av; Aa; -Aa];
-% Adyn = blkdiag(Adyn, Adyn);
-% bdyn = [bv; bv; ba; ba];
-% bdyn = [bdyn; bdyn];
+Av = [computeD(n*m, 1); -computeD(n*m, 1)];
+bv = ones(2*n*m, 1)*velocity_max*segment_time/n*m;
+
+Aa = [computeD(n*m, 2); -computeD(n*m, 2)];
+ba = ones(2*(n*m-1), 1)*acceleration_max*segment_time/(n*m*(n*m-1));
+
+Adyn = [Av;-Av; Aa; -Aa];
+Adyn = blkdiag(Adyn, Adyn);
+bdyn = [bv; bv; ba; ba];
+bdyn = [bdyn; bdyn];
               
-constr = @(x) nlConstDyn2(x, oldPoints, trajectory(5).points, Udrone1, Co, n, m , d, safeDist, Q, Adyn, bdyn);
+constr = @(x) nlConstDyn2(x, oldPoints, trajectory(5).points, Udrone1, Udrone2, Co, n, m , d, safeDist, Q, Adyn, bdyn, segment_time);
 %% SOLVE OPTIMIZATION
 tic
 x = fmincon(J, [Udrone1(3), Udrone2(2)] , [], [], [], [], lb, ub, constr, opts);
 toc
-% 
-% UNew = x;
+
+UNew1 = [0, Udrone1(2), x(1), 1];
+UNew2 = [0, x(2), Udrone2(3), 1];
 
 %% COMPUTE DISTANCE
-% C = BezierComposition(oldPoints(:, 1), oldPoints(:, 2), ...
-%                       oldPoints(:, 3), oldPoints(:, 4), ...
-%                       oldPoints(:, 5), oldPoints(:, 6), ...
-%                       Udrone(1), Udrone(2), Udrone(3), Udrone(4));
-% C = reshape(C, d, []);
-% diff = C - Co;
-% 
-% normPoints = zeros(2*n*m+1, 1);
-% for k = 0:2*n*m
-%     for j = 1:d
-%         normPoints(k+1) = normPoints(k+1) + diff(j, :)*Q(:, :, k+1)*diff(j, :)';
-%     end
-% end
-% 
-% normBez = zeros(1, length(t));
-% for tt = 1:length(t)
-%     normBez(tt) = 0;
-%     for k = 1:2*(n*m)+1
-%         normBez(tt) = normBez(tt) + bernsteinPol(2*n*m, k-1, t(tt))*normPoints(k);
-%     end
-% end
+C = BezierComposition(oldPoints(:, 1), oldPoints(:, 2), ...
+                      oldPoints(:, 3), oldPoints(:, 4), ...
+                      oldPoints(:, 5), oldPoints(:, 6), ...
+                      Udrone1(1), Udrone1(2), Udrone1(3), Udrone1(4));
+C = reshape(C, d, []);
+diff = C - Co;
+
+normPoints = zeros(2*n*m+1, 1);
+for k = 0:2*n*m
+    for j = 1:d
+        normPoints(k+1) = normPoints(k+1) + diff(j, :)*Q(:, :, k+1)*diff(j, :)';
+    end
+end
+
+normBez = zeros(1, length(t));
+for tt = 1:length(t)
+    normBez(tt) = 0;
+    for k = 1:2*(n*m)+1
+        normBez(tt) = normBez(tt) + bernsteinPol(2*n*m, k-1, t(tt))*normPoints(k);
+    end
+end
 
 %% PLOT DISTANCE
 
-% figure(19)
-% plot(normBez);
-% hold on
-% plot(safeDist^2*ones(length(normBez), 1))
-% legend('r^3(t) - o(t)')
-% hold off
+figure(19)
+plot(normBez);
+hold on
+plot(safeDist^2*ones(length(normBez), 1))
+legend('r^3(t) - o(t)')
+hold off
 
 %% COMPUTE DISTANCE
-% C = BezierComposition(oldPoints(:, 1), oldPoints(:, 2), ...
-%                       oldPoints(:, 3), oldPoints(:, 4), ...
-%                       oldPoints(:, 5), oldPoints(:, 6), ...
-%                       UNew(1), UNew(2), UNew(3), UNew(4));
-% C = reshape(C, d, []);
-% diff = C - Co;
-% 
-% normPoints = zeros(2*n*m+1, 1);
-% for k = 0:2*n*m
-%     for j = 1:d
-%         normPoints(k+1) = normPoints(k+1) + diff(j, :)*Q(:, :, k+1)*diff(j, :)';
-%     end
-% end
-% 
-% normBez = zeros(1, length(t));
-% for tt = 1:length(t)
-%     normBez(tt) = 0;
-%     for k = 1:2*(n*m)+1
-%         normBez(tt) = normBez(tt) + bernsteinPol(2*n*m, k-1, t(tt))*normPoints(k);
-%     end
-% end
+C = BezierComposition(oldPoints(:, 1), oldPoints(:, 2), ...
+                      oldPoints(:, 3), oldPoints(:, 4), ...
+                      oldPoints(:, 5), oldPoints(:, 6), ...
+                      UNew1(1), UNew1(2), UNew1(3), UNew1(4));
+C = reshape(C, d, []);
+diff = C - Co;
+
+normPoints = zeros(2*n*m+1, 1);
+for k = 0:2*n*m
+    for j = 1:d
+        normPoints(k+1) = normPoints(k+1) + diff(j, :)*Q(:, :, k+1)*diff(j, :)';
+    end
+end
+
+normBez = zeros(1, length(t));
+for tt = 1:length(t)
+    normBez(tt) = 0;
+    for k = 1:2*(n*m)+1
+        normBez(tt) = normBez(tt) + bernsteinPol(2*n*m, k-1, t(tt))*normPoints(k);
+    end
+end
 
 %% PLOT DISTANCE
 
-% figure(101)
-% plot(normBez);
-% hold on
-% plot(safeDist^2*ones(length(normBez), 1))
-% legend('r^3(t) - o(t)')
-% hold off
+figure(101)
+plot(normBez);
+hold on
+plot(safeDist^2*ones(length(normBez), 1))
+legend('r^3(t) - o(t)')
+hold off
+
+%% VELOCITY
+bezierCurveV1 = zeros(d, length(t));
+for tt = 1:length(t)
+    bezierCurveV1(:, tt) = zeros(d, 1);
+    u = 0;
+    for k = 1:m+1
+        u = u + bernsteinPol(m, k-1, t(tt))*UNew1(k);
+    end
+    for k = 1:n
+        bezierCurveV1(:, tt) = bezierCurveV1(:, tt) + bernsteinPol(n-1, k-1, u)*(oldPoints(:, k+1) - oldPoints(:, k));
+    end
+    ud = 0;
+    for k = 1:m
+        ud = ud + bernsteinPol(m-1, k-1, t(tt))*(UNew1(k+1) - UNew1(k));
+    end
+    
+    bezierCurveV1(:, tt) = bezierCurveV1(:, tt)*n*m*ud/segment_time;
+end
+
+bezierCurveV2 = zeros(d, length(t));
+for tt = 1:length(t)
+    bezierCurveV2(:, tt) = zeros(d, 1);
+    u = 0;
+    for k = 1:m+1
+        u = u + bernsteinPol(m, k-1, t(tt))*UNew2(k);
+    end
+    for k = 1:n
+        bezierCurveV2(:, tt) = bezierCurveV2(:, tt) + bernsteinPol(n-1, k-1, u)*(trajectory(5).points(:, k+1) - trajectory(5).points(:, k));
+    end
+    ud = 0;
+    for k = 1:m
+        ud = ud + bernsteinPol(m-1, k-1, t(tt))*(UNew2(k+1) - UNew2(k));
+    end
+    
+    bezierCurveV2(:, tt) = bezierCurveV2(:, tt)*n*m*ud/segment_time;
+end
+
+figure(400)
+plot([bezierCurveV1(1, :), bezierCurveV2(1, :)]);
+hold on
+plot([bezierCurveV1(2, :), bezierCurveV2(2, :)]);
+hold off
+legend('v_x', 'v_y')
 
 %% CURVES
 % bezierCurveD = zeros(d, length(t));
