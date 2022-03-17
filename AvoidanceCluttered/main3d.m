@@ -320,6 +320,8 @@ figure(2)
 plot3(start_position1(1), start_position1(2), start_position1(2), '.g', 'MarkerSize', 50);
 hold on
 plot3(target_position1(1), target_position1(2), target_position1(3), '.r', 'MarkerSize', 50);
+plot3(start_position2(1), start_position2(2), start_position2(3), '.b', 'MarkerSize', 50);
+plot3(target_position2(1), target_position2(2), target_position2(3), '.k', 'MarkerSize', 50);
 plotWall();
 
 for i = 1:segments_num

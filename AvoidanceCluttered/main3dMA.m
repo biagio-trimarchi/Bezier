@@ -310,17 +310,21 @@ hold on
 plot3(start_position2(1), start_position2(2), start_position2(3), '.g', 'MarkerSize', 50);
 plot3(target_position1(1), target_position1(2), target_position1(3), '.r', 'MarkerSize', 50);
 plot3(target_position2(1), target_position2(2), target_position2(3), '.r', 'MarkerSize', 50);
-plotWall();
 
 for i = 1:segments_num
-    plot3(trajectory1(i).points(1, :), trajectory1(i).points(2, :), trajectory1(i).points(3, :), 'o', 'MarkerSize', 10);
+    %plot3(trajectory1(i).points(1, :), trajectory1(i).points(2, :), trajectory1(i).points(3, :), 'o', 'MarkerSize', 10);
     plot3(trajectory1(i).curve(1, :), trajectory1(i).curve(2, :), trajectory1(i).curve(3, :), 'LineWidth', 5);
-    plot3(trajectory2(i).points(1, :), trajectory2(i).points(2, :), trajectory2(i).points(3, :), 'o', 'MarkerSize', 10);
+    %plot3(trajectory2(i).points(1, :), trajectory2(i).points(2, :), trajectory2(i).points(3, :), 'o', 'MarkerSize', 10);
     plot3(trajectory2(i).curve(1, :), trajectory2(i).curve(2, :), trajectory2(i).curve(3, :), 'LineWidth', 5);
+end
+
+for i = 1:segments_num
     for tt = 1:10:length(t)
         plotSphere(trajectory1(i).curve(1, tt), trajectory1(i).curve(2, tt), trajectory1(i).curve(3, tt), safeDist)
     end
 end
+
+plotWall();
 hold off
 
 xlim([-5, 20])
@@ -392,6 +396,7 @@ figure(18)
 plot(normBez);
 hold on
 plot(safeDist^2*ones(length(normBez), 1))
+legend('||r^2_1(t) - r^2_2(t)||^2')
 hold off
 
 %% COMPUTE DISTANCE AFTER
@@ -429,6 +434,7 @@ figure(19)
 plot(normBez);
 hold on
 plot(safeDist^2*ones(length(normBez), 1))
+legend('||r^2_1(t) - r^2_2(t)||^2')
 hold off
 
 %% CURVES

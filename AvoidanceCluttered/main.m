@@ -22,12 +22,12 @@ t = 0:0.01:1;       % Time Vector (for visualization)
 %% MISSION PARAMETERS
 start_position = [1; 4];                    % Start Position
 target_position = [8; 4];                   % Target Position
-segment_time = 5;                           % Time Allocated to each Segment
+segment_time = 10;                           % Time Allocated to each Segment
 total_time = segments_num*segment_time;     % Total Mission Time
 
 %% VEHICLE PARAMETERS
-velocity_max = 1000;          % Maximum Velocity
-acceleration_max = 1000;       % Maximum Acceleration
+velocity_max = 200;          % Maximum Velocity
+acceleration_max = 200;       % Maximum Acceleration
 safeDist = 0.3;            % SafeDistance
 
 %% SAFE REGIONS
@@ -194,8 +194,30 @@ for i = 1:segments_num
 end
 hold off
 
+legend('Start', 'Goal', 'r^1(t)', 'r^2(t)', 'r^3(t)', 'r^4(t)', 'r^5(t)')
+
 xlim([0, 9])
 ylim([0, 9])
+
+%% ADDITIONAL PLOTS
+
+figure(100)
+drawObstacles();
+hold on
+rectangle('Position', [0,0,2,9], 'FaceColor', [1 0 0 0.2], 'EdgeColor','none')
+rectangle('Position', [0,5,5,1], 'FaceColor', [0 1 0 0.2], 'EdgeColor','none')
+rectangle('Position', [4,0,1,9], 'FaceColor', [0 0 1 0.2], 'EdgeColor','none')
+rectangle('Position', [4,0,5,1], 'FaceColor', [1 1 0 0.2], 'EdgeColor','none')
+rectangle('Position', [6,0,3,9], 'FaceColor', [1 0 1 0.2], 'EdgeColor','none')
+text(1, 4, 'E^1')
+text(3, 5.5, 'E^2')
+text(4.5, 4, 'E^3')
+text(5.5, 0.5, 'E^4')
+text(7, 4, 'E^5')
+hold off
+xlim([0, 9])
+ylim([0, 9])
+
 
 %% %% OBSTACLE AVOIDANCE CLASSIC
 
@@ -477,7 +499,7 @@ ylim([0, 9])
 %% %% OPTIMIZATION P/U (ONLY U?)
 
 Udrone = [0, 0.3, 0.7, 1];
-Uobstacle = [0, 0.3, 0.7, 1];
+Uobstacle = [0, 0.2, 0.5, 1];
 
 Q = computeQ(n*m);
 
@@ -518,7 +540,7 @@ UNew = x;
 C = BezierComposition(oldPoints(:, 1), oldPoints(:, 2), ...
                       oldPoints(:, 3), oldPoints(:, 4), ...
                       oldPoints(:, 5), oldPoints(:, 6), ...
-                      UNew(1), UNew(2), UNew(3), UNew(4));
+                      Udrone(1), Udrone(2), Udrone(3), Udrone(4));
 C = reshape(C, d, []);
 diff = C - Co;
 
@@ -543,6 +565,39 @@ figure(19)
 plot(normBez);
 hold on
 plot(safeDist^2*ones(length(normBez), 1))
+legend('r^3(t) - o(t)')
+hold off
+
+%% COMPUTE DISTANCE
+C = BezierComposition(oldPoints(:, 1), oldPoints(:, 2), ...
+                      oldPoints(:, 3), oldPoints(:, 4), ...
+                      oldPoints(:, 5), oldPoints(:, 6), ...
+                      UNew(1), UNew(2), UNew(3), UNew(4));
+C = reshape(C, d, []);
+diff = C - Co;
+
+normPoints = zeros(2*n*m+1, 1);
+for k = 0:2*n*m
+    for j = 1:d
+        normPoints(k+1) = normPoints(k+1) + diff(j, :)*Q(:, :, k+1)*diff(j, :)';
+    end
+end
+
+normBez = zeros(1, length(t));
+for tt = 1:length(t)
+    normBez(tt) = 0;
+    for k = 1:2*(n*m)+1
+        normBez(tt) = normBez(tt) + bernsteinPol(2*n*m, k-1, t(tt))*normPoints(k);
+    end
+end
+
+%% PLOT DISTANCE
+
+figure(101)
+plot(normBez);
+hold on
+plot(safeDist^2*ones(length(normBez), 1))
+legend('r^3(t) - o(t)')
 hold off
 
 %% CURVES
@@ -570,7 +625,7 @@ for tt = 1:length(t)
     end
 end
 
-for tt = 1:length(t)
+for tt = 1:length(t)/2
     figure(20)
     plot(bezierCurveD(1, :), bezierCurveD(2, :), 'LineWidth', lineWidth);
     hold on
@@ -580,6 +635,7 @@ for tt = 1:length(t)
     plot(bezierCurveO(1, tt), bezierCurveO(2, tt), 'x', 'MarkerSize', markerSize)
     drawObstacles()
     plotCircle(bezierCurveD(1, tt), bezierCurveD(2, tt), safeDist)
+    legend('Drone path', 'Obstacle path', 'Drone', 'Obstacle', 'Safe Circle')
     hold off
     xlim([0, 9])
     ylim([0, 9])
