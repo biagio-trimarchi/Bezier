@@ -40,5 +40,3 @@ hold on
 %plot(u)
 plot(x(1, :))
 hold off
-
-C = computeC()
