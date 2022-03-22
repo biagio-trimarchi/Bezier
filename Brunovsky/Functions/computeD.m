@@ -7,6 +7,6 @@ function D = computeD(n, r)
         for k = 1:n+1-j
             D(k, :) = [zeros(1, k-1), -1, 1, zeros(1, n+2-j-2-(k-1))];
         end
-        D = D*Daux;
+        D = D*((n-(j-1))*Daux);
     end
 end
